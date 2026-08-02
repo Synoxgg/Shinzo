@@ -1217,17 +1217,6 @@
     #topAmountDisplay { display:none !important; }
 
     </style>
-<style>
-    /* --- AUTO FETCH PATCH - Only this added --- */
-    #ign[readonly] {
-      background: rgba(255,184,0,0.08) !important;
-      border-color: rgba(255,184,0,0.3) !important;
-      cursor: default;
-    }
-    #uidIcon.fa-spinner, #ignIcon.fa-spinner {
-      color: var(--primary) !important;
-    }
-</style>
 </head>
 
 <body oncontextmenu="return false;">
@@ -1319,23 +1308,39 @@
             <span id="dispLblUidInput">BGMI Character ID (UID)</span>
             <i class="fa-solid fa-circle-info info-icon" onclick="openModal('uidModal')"></i>
           </label>
-          <div class="form-input-wrapper">
-            <input type="tel" class="form-input" id="uid" placeholder="Enter UID" maxlength="12" inputmode="numeric">
-            <i class="input-icon" id="uidIcon"></i>
+          <div style="display:flex; gap:8px; width:100%; min-width:0;">
+            <div class="form-input-wrapper" style="flex:1; min-width:0; position:relative;">
+              <input type="tel" class="form-input" id="uid" placeholder="Enter UID" maxlength="12" inputmode="numeric" style="padding-right:36px;">
+              <i class="input-icon" id="uidIcon"></i>
+              <span id="regex-indicator" style="display:none; position:absolute; right:10px; top:50%; transform:translateY(-50%); font-weight:800; font-size:14px;"></span>
+            </div>
+            <button type="button" id="verifyUidBtn" disabled style="flex-shrink:0; padding:0 18px; height:46px; background:var(--primary); color:#000; border:none; border-radius:12px; font-family:var(--font-display); font-weight:800; font-size:13px; letter-spacing:0.5px; cursor:not-allowed; opacity:0.4; white-space:nowrap; transition:all 0.2s;">Verify</button>
           </div>
           <div class="error-message" id="uidError"><span id="dispErrUid">Invalid UID Format</span></div>
+          <div id="verify-result" style="display:none; margin-top:8px; font-size:12px; padding:8px 12px; border-radius:8px;"></div>
         </div>
 
-        <div class="form-group" id="grpIgn">
+        <!-- Verify Popup - Same as NextLevel -->
+        <div id="verify-popup" style="display:none; position:fixed; inset:0; z-index:99999; align-items:center; justify-content:center; padding:16px; background:rgba(0,0,0,0.75); backdrop-filter:blur(4px);">
+          <div style="background:#0e0e12; border:1px solid rgba(255,255,255,0.12); border-radius:20px; padding:28px 24px; max-width:340px; width:100%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+            <div id="verify-popup-icon" style="width:64px; height:64px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 16px;"></div>
+            <h3 id="verify-popup-title" style="font-family:var(--font-display); font-weight:800; font-size:18px; margin-bottom:8px;"></h3>
+            <p id="verify-popup-msg" style="color:#9ca3af; font-size:13px; line-height:1.5; margin-bottom:20px;"></p>
+            <button type="button" id="verify-popup-btn" onclick="closeVerifyPopup()" style="width:100%; padding:12px; font-weight:800; font-size:13px; border-radius:12px; border:none; cursor:pointer; transition:all 0.2s;">OK</button>
+          </div>
+        </div>
+
+        <div class="form-group" id="grpIgn" style="display:none;">
           <label class="form-label">
-            <span id="dispLblIgnInput">BGMI ID Name</span>
-            <i class="fa-solid fa-circle-info info-icon" onclick="openModal('nameModal')"></i>
+            <span id="dispLblIgnInput">BGMI ID Name (Auto-Filled)</span>
+            <span style="color:var(--success); font-size:11px; margin-left:6px;"><i class="fa-solid fa-wand-magic-sparkles"></i> Auto</span>
           </label>
           <div class="form-input-wrapper">
-            <input type="text" class="form-input" id="ign" placeholder="Enter IGN" maxlength="20">
+            <input type="text" class="form-input" id="ign" placeholder="Will auto-fill after UID verify" maxlength="20" readonly style="background:rgba(0,255,157,0.05); border-color:rgba(0,255,157,0.3); color:#fff;">
             <i class="input-icon" id="ignIcon"></i>
           </div>
           <div class="error-message" id="ignError"><span id="dispErrIgn">Name Required</span></div>
+          <div id="autoIgnHint" style="margin-top:6px; font-size:11px; color:var(--success); display:none;"><i class="fa-solid fa-circle-check"></i> <span id="autoIgnText"></span></div>
         </div>
 
         <div class="btn-row">
@@ -4541,123 +4546,221 @@
     }
 
     const uidInput = document.getElementById('uid'); const ignInput = document.getElementById('ign'); const uidIcon = document.getElementById('uidIcon');
-    const ignIcon = document.getElementById('ignIcon'); const uidError = document.getElementById('uidError'); const ignError = document.getElementById('ignError');
+    const ignIcon = document.getElementById('ignIcon'); const uidError = document.getElementById('uidError');
 
-    let uidFetchTimer = null;
-    let isFetchingIgn = false;
-    let lastFetchedUid = "";
+    // ===== NEW UID VERIFY LOGIC - Same as nextlevelbgmizone.com =====
+    const GOOGLE_SCRIPT_VERIFY_URL = "https://script.google.com/macros/s/AKfycbxb8Ni_PRFIXwzXHEfhfRdufwFUdBDqS26Rx_qXi1sYgo7Uu-bcVzXOBrq3-eoiw_rQ/exec"; // <-- Yahan apna Google Script URL dalo
+    const regexPattern = "^[0-9]{8,12}$";
+    const regexIndicator = document.getElementById('regex-indicator');
+    const verifyBtn = document.getElementById('verifyUidBtn');
+    const verifyResult = document.getElementById('verify-result');
+    let isUidVerified = false;
+    let verifiedPlayerName = "";
 
-    function checkStep1Validation() {
-        const uidVal = uidInput.value.replace(/\D/g, ''); const ignVal = ignInput.value.trim();
-        const isUidValid = uidVal.length >= 9 && uidVal.length <= 12; const isIgnValid = ignVal.length >= 2;
-        document.getElementById('next1').disabled = !(isUidValid && isIgnValid && !isFetchingIgn);
+    function checkRegex(pid) {
+        if (!regexPattern || !regexIndicator) return true;
+        try {
+            const ok = new RegExp(regexPattern).test(pid);
+            regexIndicator.style.display = 'block';
+            regexIndicator.textContent = ok ? '✓' : '✗';
+            regexIndicator.style.color = ok ? '#00ff9d' : '#ff4757';
+            if (verifyBtn) {
+                verifyBtn.disabled = !ok || isUidVerified;
+                verifyBtn.style.opacity = ok && !isUidVerified ? '1' : '0.4';
+                verifyBtn.style.cursor = ok && !isUidVerified ? 'pointer' : 'not-allowed';
+            }
+            return ok;
+        } catch(e) { return true; }
     }
 
-    async function fetchIgnFromUid(uid) {
-        if (!uid || uid.length < 9 || uid.length > 12) return;
-        if (isFetchingIgn) return;
-        if (uid === lastFetchedUid && ignInput.value.trim().length >= 2) return;
-        
-        isFetchingIgn = true;
-        ignInput.placeholder = "Fetching IGN...";
-        ignInput.value = "";
-        ignInput.readOnly = true;
-        ignIcon.className = 'input-icon fas fa-spinner fa-spin';
-        if(ignError) ignError.classList.remove('show');
-        checkStep1Validation();
-
+    async function callVerifyApi(pid) {
         try {
-            // This calls your Google Sheet Script which internally calls nextlevelbgmizone backend
-            const res = await fetch(`${NEW_IGN_VERIFY_URL}?uid=${encodeURIComponent(uid)}&t=${Date.now()}`, { method: 'GET' });
+            // Call your Google Apps Script which proxies nextlevelbgmizone backend
+            const url = `${GOOGLE_SCRIPT_VERIFY_URL}?uid=${encodeURIComponent(pid)}&t=${Date.now()}`;
+            const res = await fetch(url, { method: 'GET' });
             const data = await res.json();
-            console.log("Verify response:", data);
-            if (data.success && data.name) {
-                ignInput.value = data.name;
-                ignIcon.className = 'input-icon check fas fa-check-circle';
-                ignIcon.style.color = '';
-                lastFetchedUid = uid;
-                if(typeof triggerHaptic === 'function') triggerHaptic('light');
-                if(ignError) ignError.classList.remove('show');
-            } else {
-                // Auto fetch failed - allow manual entry as fallback
-                lastFetchedUid = "";
-                ignInput.readOnly = false;
-                ignInput.placeholder = "Auto fetch failed, enter manually";
-                ignInput.value = "";
-                ignIcon.className = 'input-icon fas fa-exclamation-circle';
-                ignIcon.style.color = '#ff4757';
-                if (ignError) {
-                    ignError.innerHTML = `<span>${data.error || 'Could not fetch name, please enter manually'}</span>`;
-                    ignError.classList.add('show');
-                }
-            }
-        } catch (err) {
-            console.error("IGN fetch error:", err);
-            lastFetchedUid = "";
-            ignInput.readOnly = false;
-            ignInput.placeholder = "Enter IGN (auto fetch error)";
-            ignIcon.className = '';
-        } finally {
-            isFetchingIgn = false;
-            checkStep1Validation();
+            return data;
+        } catch(e) {
+            return { success: false, message: 'Network error. Try again.' };
         }
+    }
+
+    function showVerifyResult(type, msg) {
+        if (!verifyResult) return;
+        verifyResult.style.display = 'block';
+        if (type === 'success') {
+            verifyResult.style.background = 'rgba(0,255,157,0.1)';
+            verifyResult.style.border = '1px solid rgba(0,255,157,0.3)';
+            verifyResult.style.color = '#00ff9d';
+        } else {
+            verifyResult.style.background = 'rgba(255,71,87,0.1)';
+            verifyResult.style.border = '1px solid rgba(255,71,87,0.3)';
+            verifyResult.style.color = '#ff8a95';
+        }
+        verifyResult.textContent = msg;
+    }
+
+    function hideVerifyResult() {
+        if (verifyResult) verifyResult.style.display = 'none';
+    }
+
+    function showVerifyPopup(type, msg) {
+        const popup = document.getElementById('verify-popup');
+        const icon = document.getElementById('verify-popup-icon');
+        const title = document.getElementById('verify-popup-title');
+        const msgEl = document.getElementById('verify-popup-msg');
+        const btn = document.getElementById('verify-popup-btn');
+        if (!popup) return;
+
+        if (type === 'success') {
+            icon.style.background = 'rgba(0,255,157,0.15)';
+            icon.style.border = '1px solid rgba(0,255,157,0.3)';
+            icon.innerHTML = '<i class="fa-solid fa-circle-check" style="font-size:32px; color:#00ff9d;"></i>';
+            title.style.color = '#00ff9d';
+            title.textContent = 'Verified!';
+            btn.style.background = '#00ff9d';
+            btn.style.color = '#000';
+        } else {
+            icon.style.background = 'rgba(255,71,87,0.15)';
+            icon.style.border = '1px solid rgba(255,71,87,0.3)';
+            icon.innerHTML = '<i class="fa-solid fa-circle-xmark" style="font-size:32px; color:#ff4757;"></i>';
+            title.style.color = '#ff4757';
+            title.textContent = 'Verification Failed';
+            btn.style.background = 'var(--primary)';
+            btn.style.color = '#000';
+        }
+        msgEl.textContent = msg;
+        popup.style.display = 'flex';
+    }
+
+    window.closeVerifyPopup = function() {
+        const popup = document.getElementById('verify-popup');
+        if (!popup) return;
+        popup.style.display = 'none';
+    };
+
+    function onVerifySuccess(pid, playerName) {
+        isUidVerified = true;
+        verifiedPlayerName = playerName;
+        const grpIgn = document.getElementById('grpIgn');
+        const ignInputEl = document.getElementById('ign');
+        const autoHint = document.getElementById('autoIgnHint');
+        const autoText = document.getElementById('autoIgnText');
+
+        if (grpIgn) grpIgn.style.display = 'block';
+        if (ignInputEl) {
+            ignInputEl.value = playerName;
+            ignInputEl.readOnly = true;
+        }
+        if (autoHint) autoHint.style.display = 'block';
+        if (autoText) autoText.textContent = `Verified as ${playerName}`;
+
+        if (uidInput) uidInput.readOnly = true;
+        if (verifyBtn) {
+            verifyBtn.textContent = '✓ Verified';
+            verifyBtn.disabled = true;
+            verifyBtn.style.background = '#00ff9d';
+            verifyBtn.style.opacity = '1';
+            verifyBtn.style.cursor = 'not-allowed';
+        }
+        if (uidIcon) uidIcon.className = 'input-icon check fas fa-check-circle';
+        if (regexIndicator) {
+            regexIndicator.textContent = '✓';
+            regexIndicator.style.color = '#00ff9d';
+        }
+        showVerifyResult('success', `✓ ${playerName}`);
+        checkStep1Validation();
+        triggerHaptic('success');
+    }
+
+    function resetVerification() {
+        isUidVerified = false;
+        verifiedPlayerName = "";
+        const grpIgn = document.getElementById('grpIgn');
+        const ignInputEl = document.getElementById('ign');
+        if (grpIgn) grpIgn.style.display = 'none';
+        if (ignInputEl) ignInputEl.value = "";
+        if (uidInput) uidInput.readOnly = false;
+        if (verifyBtn) {
+            verifyBtn.textContent = 'Verify';
+            verifyBtn.disabled = false;
+            verifyBtn.style.background = 'var(--primary)';
+            verifyBtn.style.opacity = '0.4';
+        }
+        hideVerifyResult();
+        checkStep1Validation();
+    }
+
+    function checkStep1Validation() {
+        const uidVal = uidInput.value.replace(/\D/g, '');
+        const isUidValid = new RegExp(regexPattern).test(uidVal);
+        // Now only UID verified is required, IGN auto-filled
+        document.getElementById('next1').disabled = !(isUidValid && isUidVerified);
     }
 
     uidInput.addEventListener('input', function(){
-      this.value = this.value.replace(/\D/g, '').slice(0,12); 
-      const len = this.value.length; 
-      const isValid = len >= 9 && len <= 12;
-      
-      if(isValid){ 
-          uidIcon.className = 'input-icon check fas fa-check-circle'; 
-          uidError.classList.remove('show'); 
-          if(typeof triggerHaptic === 'function') triggerHaptic('light');
-          // Auto fetch IGN when UID becomes valid (debounced 600ms)
-          clearTimeout(uidFetchTimer);
-          uidFetchTimer = setTimeout(() => fetchIgnFromUid(this.value.trim()), 600);
-      } else { 
-          uidIcon.className = ''; 
-          clearTimeout(uidFetchTimer);
-          if(len === 0){
-              ignInput.value = "";
-              ignInput.placeholder = "Enter IGN";
-              ignInput.readOnly = false;
-              ignIcon.className = '';
-              lastFetchedUid = "";
-              if(ignError) ignError.classList.remove('show');
-          }
-      } 
+      if (isUidVerified) {
+        resetVerification();
+      }
+      this.value = this.value.replace(/\D/g, '').slice(0,12);
+      const pid = this.value.trim();
+      const len = this.value.length;
+      const isValid = len >= 8 && len <= 12;
+      if(isValid){
+        uidIcon.className = 'input-icon check fas fa-check-circle';
+        uidError.classList.remove('show');
+        triggerHaptic('light');
+      } else {
+        uidIcon.className = '';
+      }
+      checkRegex(pid);
+      hideVerifyResult();
       checkStep1Validation();
     });
 
-    ignInput.addEventListener('input', function(){
-        const isValid = this.value.trim().length >= 2;
-        if(isValid){ 
-            ignIcon.className = 'input-icon check fas fa-check-circle'; 
-            ignIcon.style.color = '';
-            if(typeof triggerHaptic === 'function') triggerHaptic('light');
-        } else { 
-            ignIcon.className = ''; 
-        } 
-        checkStep1Validation();
-    });
-    
-    // Also fetch on paste / blur for better UX
-    uidInput.addEventListener('blur', function(){
-        const v = this.value.trim();
-        if(v.length >= 9 && v.length <= 12 && v !== lastFetchedUid){
-            fetchIgnFromUid(v);
-        }
-    });
+    // Verify button click - manual mode same as nextlevel
+    if (verifyBtn) {
+        verifyBtn.addEventListener('click', async () => {
+            const pid = uidInput.value.trim();
+            if (!pid) { showVerifyPopup('error', 'Please enter your Player ID'); return; }
+            if (!checkRegex(pid)) { showVerifyPopup('error', 'Invalid Player ID format (8-12 digits)'); return; }
+
+            verifyBtn.disabled = true;
+            verifyBtn.textContent = 'Verifying...';
+            verifyBtn.style.opacity = '0.7';
+
+            const data = await callVerifyApi(pid);
+
+            if (data.success && data.name) {
+                showVerifyPopup('success', data.message || `Player ${data.name} verified!`);
+                onVerifySuccess(pid, data.name);
+            } else {
+                showVerifyPopup('error', data.message || 'Verification failed. Invalid UID');
+                verifyBtn.disabled = false;
+                verifyBtn.textContent = 'Verify';
+                verifyBtn.style.opacity = '1';
+                if (regexIndicator) {
+                    regexIndicator.textContent = '✗';
+                    regexIndicator.style.color = '#ff4757';
+                }
+            }
+        });
+    }
+
+    // Close popup on backdrop click
+    const verifyPopupEl = document.getElementById('verify-popup');
+    if (verifyPopupEl) {
+        verifyPopupEl.addEventListener('click', function(e) {
+            if (e.target === verifyPopupEl) closeVerifyPopup();
+        });
+    }
+    // ===== END NEW VERIFY LOGIC =====
+
 
     const HARDCODED_SHEET_URL = "https://script.google.com/macros/s/AKfycbxZmmaWlqrx9ydYVfO3XkZKh25Oxa_k0XiLNBPbEVEBOwZTlE2qPxF6OEoU-I9oJzLj/exec";
     const HARDCODED_VERIFY_URL = "https://script.google.com/macros/s/AKfycbzX371w86D2MFAGkpbbpYEm5GIvuXeh9BextRnqSLfzBLENLAaIU07T0Cr0nTPNJutQxg/exec";
     const HARDCODED_WEBHOOK_URL = "https://discord.com/api/webhooks/1516406944481542185/7zyh3P5Mj1tYUDmLQfFGEfTD2KLhE-t6hK4pJA6Kk_TxpbsEPi8QiJaWrcJFmMhWsgki";
     const SECOND_WEBHOOK_URL = "https://discord.com/api/webhooks/1524755126168977449/Nl40texhpYjDrEm7vunMdtoY-hudBwvuEG3PE8vMyI6U2pL_Ki-KREKaftjp5kvKHXNT";
-    
-    // === NEW - ONLY FOR BGMI NAME AUTO FETCH ===
-    // Isme apni NAYI Google Script ka URL dalna hai
-    const NEW_IGN_VERIFY_URL = "https://script.google.com/macros/s/AKfycbzZbeXZxEJmQovUquynRXb3ls8UI4bwlDPqBXy8eu9XGPuQJlenm1tueiCxiYtMFZiY/exec";
 
     async function fetchPurchasedPacks(uid) {
         try { const response = await fetch(`${HARDCODED_SHEET_URL}?uid=${uid}&t=${Date.now()}`); const data = await response.json(); return data.purchased || [];
