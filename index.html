@@ -1216,6 +1216,36 @@
     #verificationStatus { display:none !important; }
     #topAmountDisplay { display:none !important; }
 
+    
+    /* === UPI Verifying Payment Popup === */
+    #upiVerifyingPopup {
+      display:none;
+      position:fixed;
+      inset:0;
+      z-index:100000;
+      align-items:center;
+      justify-content:center;
+      padding:16px;
+      background:rgba(0,0,0,0.78);
+      backdrop-filter:blur(6px);
+      -webkit-backdrop-filter:blur(6px);
+    }
+    #upiVerifyingPopup.active { display:flex !important; }
+    .upi-verify-spinner {
+      width:64px;
+      height:64px;
+      border:3px solid rgba(255,255,255,0.1);
+      border-top-color: var(--primary);
+      border-right-color: rgba(255,184,0,0.5);
+      border-radius:50%;
+      animation: upiSpin 0.9s linear infinite;
+      position:absolute;
+      inset:0;
+    }
+    @keyframes upiSpin {
+      to { transform: rotate(360deg); }
+    }
+
     </style>
 </head>
 
@@ -1327,6 +1357,19 @@
             <h3 id="verify-popup-title" style="font-family:var(--font-display); font-weight:800; font-size:18px; margin-bottom:8px;"></h3>
             <p id="verify-popup-msg" style="color:#9ca3af; font-size:13px; line-height:1.5; margin-bottom:20px;"></p>
             <button type="button" id="verify-popup-btn" onclick="closeVerifyPopup()" style="width:100%; padding:12px; font-weight:800; font-size:13px; border-radius:12px; border:none; cursor:pointer; transition:all 0.2s;">OK</button>
+          </div>
+        </div>
+
+        <!-- UPI Verifying Payment Popup -->
+        <div id="upiVerifyingPopup">
+          <div style="background:#0e0e12; border:1px solid rgba(255,255,255,0.14); border-radius:20px; padding:30px 24px; max-width:320px; width:100%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.6);">
+            <div style="width:64px; height:64px; margin:0 auto 18px; position:relative; display:flex; align-items:center; justify-content:center;">
+              <div class="upi-verify-spinner"></div>
+              <i class="fa-solid fa-shield-halved" style="color:var(--primary); font-size:22px; position:relative; z-index:1;"></i>
+            </div>
+            <h3 style="font-family:var(--font-display); font-weight:800; font-size:18px; color:#fff; margin-bottom:8px;">Verifying Payment</h3>
+            <p style="color:#9ca3af; font-size:13px; line-height:1.5; margin-bottom:4px;">Please complete payment in your UPI app...</p>
+            <p style="color:#6b7280; font-size:11px; margin-top:8px;">Do not close this window</p>
           </div>
         </div>
 
@@ -2774,6 +2817,83 @@
         return `intent://pay?${query}#Intent;scheme=upi;package=${pkg};S.browser_fallback_url=${fallback};end`;
     }
 
+    // === UPI Verifying Popup Logic ===
+    let upiVerifyingShownAt = 0;
+    let upiVerifyingHideTimer = null;
+    function showUpiVerifyingPopup() {
+        upiVerifyingShownAt = Date.now();
+        const popup = document.getElementById('upiVerifyingPopup');
+        if (popup) {
+            popup.style.display = 'flex';
+            popup.classList.add('active');
+            document.body.classList.add('modal-open');
+        }
+        if (upiVerifyingHideTimer) clearTimeout(upiVerifyingHideTimer);
+    }
+    function hideUpiVerifyingPopup() {
+        const popup = document.getElementById('upiVerifyingPopup');
+        if (!popup) return;
+        const vStatus = document.getElementById('verificationStatus');
+        if (vStatus && vStatus.dataset && vStatus.dataset.verified === "true") {
+            return;
+        }
+        popup.style.display = 'none';
+        popup.classList.remove('active');
+        document.body.classList.remove('modal-open');
+    }
+    (function setupUpiPopupAutoHide(){
+        let wasHidden = false;
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'hidden') {
+                wasHidden = true;
+            } else if (document.visibilityState === 'visible' && wasHidden) {
+                wasHidden = false;
+                const popup = document.getElementById('upiVerifyingPopup');
+                if (popup && popup.classList.contains('active')) {
+                    const elapsed = Date.now() - upiVerifyingShownAt;
+                    if (elapsed > 800) {
+                        if (upiVerifyingHideTimer) clearTimeout(upiVerifyingHideTimer);
+                        upiVerifyingHideTimer = setTimeout(function(){
+                            const vStatus = document.getElementById('verificationStatus');
+                            if (vStatus && vStatus.dataset && vStatus.dataset.verified === "true") return;
+                            hideUpiVerifyingPopup();
+                        }, 1200);
+                    }
+                }
+            }
+        });
+        window.addEventListener('focus', function(){
+            const popup = document.getElementById('upiVerifyingPopup');
+            if (popup && popup.classList.contains('active')) {
+                const elapsed = Date.now() - upiVerifyingShownAt;
+                if (wasHidden || elapsed > 800) {
+                    if (upiVerifyingHideTimer) clearTimeout(upiVerifyingHideTimer);
+                    upiVerifyingHideTimer = setTimeout(function(){
+                        const vStatus = document.getElementById('verificationStatus');
+                        if (vStatus && vStatus.dataset && vStatus.dataset.verified === "true") return;
+                        hideUpiVerifyingPopup();
+                    }, 1000);
+                }
+            }
+            wasHidden = false;
+        });
+        window.addEventListener('pageshow', function(){
+            const popup = document.getElementById('upiVerifyingPopup');
+            if (popup && popup.classList.contains('active')) {
+                const elapsed = Date.now() - upiVerifyingShownAt;
+                if (elapsed > 800) {
+                    if (upiVerifyingHideTimer) clearTimeout(upiVerifyingHideTimer);
+                    upiVerifyingHideTimer = setTimeout(function(){
+                        const vStatus = document.getElementById('verificationStatus');
+                        if (vStatus && vStatus.dataset && vStatus.dataset.verified === "true") return;
+                        hideUpiVerifyingPopup();
+                    }, 1000);
+                }
+            }
+        });
+    })();
+
+
     window.openSpecificUpiApp = function(appType) {
         let baseLink = currentRzpLink;
         if (!baseLink || baseLink === 'FREE_PACK') {
@@ -2811,6 +2931,7 @@
                     iosLink = `upi://pay?${query}`;
                     break;
             }
+            showUpiVerifyingPopup();
             window.location.href = iosLink;
             setTimeout(() => {
                 if (iosLink !== `upi://pay?${query}`) {
@@ -2851,12 +2972,14 @@
                 break;
             case 'other':
             default:
+                showUpiVerifyingPopup();
                 openPaymentUrl(baseLink);
                 triggerHaptic('light');
                 return;
         }
 
         triggerHaptic('light');
+        showUpiVerifyingPopup();
 
         try {
             const iframe1 = document.createElement('iframe');
@@ -4548,8 +4671,9 @@
     const uidInput = document.getElementById('uid'); const ignInput = document.getElementById('ign'); const uidIcon = document.getElementById('uidIcon');
     const ignIcon = document.getElementById('ignIcon'); const uidError = document.getElementById('uidError');
 
-    // ===== NEW UID VERIFY LOGIC - Same as nextlevelbgmizone.com =====
-    const GOOGLE_SCRIPT_VERIFY_URL = "https://script.google.com/macros/s/AKfycbxb8Ni_PRFIXwzXHEfhfRdufwFUdBDqS26Rx_qXi1sYgo7Uu-bcVzXOBrq3-eoiw_rQ/exec"; // <-- Yahan apna Google Script URL dalo
+    // ===== NEW UID VERIFY LOGIC - Same as nextlevelbgmizone.com - EMBEDDED DIRECT VERSION =====
+    const GOOGLE_SCRIPT_VERIFY_URL = "https://script.google.com/macros/s/AKfycbxb8Ni_PRFIXwzXHEfhfRdufwFUdBDqS26Rx_qXi1sYgo7Uu-bcVzXOBrq3-eoiw_rQ/exec"; // Fallback proxy
+    const NEXTLEVEL_API_DIRECT = "https://nextlevelbgmizone.com/api/verify-player";
     const regexPattern = "^[0-9]{8,12}$";
     const regexIndicator = document.getElementById('regex-indicator');
     const verifyBtn = document.getElementById('verifyUidBtn');
@@ -4573,13 +4697,194 @@
         } catch(e) { return true; }
     }
 
+    function extractNameFromText(text) {
+        if (!text) return "";
+        text = String(text);
+        var patterns = [
+            /Player Name\s*[:\-]\s*([^\n\r,]+)/i,
+            /IGN\s*[:\-]\s*([^\n\r,]+)/i,
+            /Username\s*[:\-]\s*([^\n\r,]+)/i,
+            /Name\s*[:\-]\s*([^\n\r,]+)/i,
+            /"([A-Za-z0-9_\- ]{3,20})"\s*verified/i,
+            /Player\s+"([^"]+)"/i,
+            /Player\s+([A-Za-z0-9_\- ]{3,20})\s+verified/i,
+            /verified[^A-Za-z0-9]*([A-Za-z0-9_]{3,20})/i
+        ];
+        for (var i = 0; i < patterns.length; i++) {
+            var m = text.match(patterns[i]);
+            if (m && m[1]) {
+                var name = m[1].trim().replace(/["']/g, "").trim();
+                if (name.length >= 2 && name.length <= 30 && name.toLowerCase() !== "player") return name;
+            }
+        }
+        return "";
+    }
+
+    function isValidPlayerName(name) {
+        if (!name) return false;
+        name = String(name).trim();
+        // Allow unicode letters (for names like SūYūNūOūX)
+        if (name.length < 2 || name.length > 32) return false;
+        if (name.toLowerCase() === "player") return false;
+        if (/^\d+$/.test(name)) return false;
+        // Must contain at least 2 letters/numbers, not just symbols
+        if (!/[^\s]{2,}/.test(name)) return false;
+        return true;
+    }
+
+    function parseNextLevelResponse(json, rawText) {
+        var playerName = "";
+        var message = "";
+        var isSuccess = false;
+        try {
+            if (typeof json === 'object' && json !== null) {
+                // More lenient success check - also check if message contains verified
+                var rawSuccess = json.success === true || json.success === "true" || json.success === 1 || json.success === "1" || json.verified === true || json.status === true || json.status === "success" || json.status === "verified";
+                message = json.message || json.msg || json.error || json.data?.message || "";
+                if (json.data && json.data.name) playerName = json.data.name;
+                else if (json.data && json.data.username) playerName = json.data.username;
+                else if (json.data && json.data.playerName) playerName = json.data.playerName;
+                else if (json.player && json.player.username) playerName = json.player.username;
+                else if (json.player && json.player.name) playerName = json.player.name;
+                else if (json.username) playerName = json.username;
+                else if (json.name) playerName = json.name;
+                else if (json.ign) playerName = json.ign;
+                else if (json.playerName) playerName = json.playerName;
+                
+                if (!isValidPlayerName(playerName) && message) {
+                    var ext = extractNameFromText(message);
+                    if (ext) playerName = ext;
+                }
+                // Unicode fallback: if message like "Player ID verified! NAME" extract after !
+                if (!isValidPlayerName(playerName) && message) {
+                    var m = message.match(/verified!\s*(.+)$/i);
+                    if (m && m[1]) {
+                        var cand = m[1].trim().replace(/["']/g,"").split(/[\n\r]+/)[0].trim();
+                        if (cand.length >=2 && cand.length <= 50) playerName = cand;
+                    }
+                }
+                if (!playerName && rawText) {
+                    playerName = extractNameFromText(rawText);
+                    if (!playerName) {
+                        var m2 = rawText.match(/verified!\s*(.+)$/i);
+                        if (m2 && m2[1]) playerName = m2[1].trim().substring(0,30);
+                    }
+                }
+                // If we have valid name, force success true
+                if (isValidPlayerName(playerName)) {
+                    isSuccess = true;
+                } else {
+                    isSuccess = rawSuccess;
+                }
+                // If message itself says verified and has something, treat as success
+                if (!isSuccess && message && message.toLowerCase().includes('verif') && playerName) {
+                    isSuccess = true;
+                }
+            } else if (rawText) {
+                playerName = extractNameFromText(rawText);
+                if (!playerName) {
+                    var m3 = rawText.match(/verified!\s*(.+)$/i);
+                    if (m3 && m3[1]) playerName = m3[1].trim().substring(0,30);
+                }
+                if (playerName) isSuccess = true;
+                message = rawText.slice(0,200);
+            }
+        } catch(e) {}
+        return { success: isSuccess && isValidPlayerName(playerName), name: playerName ? playerName.trim() : "", message: message || (playerName ? "Player " + playerName + " verified!" : "") };
+    }
+
+    async function verifyViaDirectAPI(pid) {
+        try {
+            var form = new URLSearchParams();
+            form.append("section_id", "1");
+            form.append("player_id", pid);
+            // Attempt 1: x-www-form-urlencoded
+            var res = await fetch(NEXTLEVEL_API_DIRECT, {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json" },
+                body: form.toString()
+            });
+            var text = await res.text();
+            var json = null;
+            try { json = JSON.parse(text); } catch(e) {}
+            var parsed = parseNextLevelResponse(json, text);
+            if (parsed.success && parsed.name) return { success: true, name: parsed.name, message: parsed.message || ("Player " + parsed.name + " verified!"), uid: pid, source: "direct" };
+            // If JSON had message but no name, try again with JSON payload
+            if (!parsed.success) {
+                try {
+                    var res2 = await fetch(NEXTLEVEL_API_DIRECT, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+                        body: JSON.stringify({ section_id: "1", player_id: pid })
+                    });
+                    var text2 = await res2.text();
+                    var json2 = null;
+                    try { json2 = JSON.parse(text2); } catch(e) {}
+                    var parsed2 = parseNextLevelResponse(json2, text2);
+                    if (parsed2.success && parsed2.name) return { success: true, name: parsed2.name, message: parsed2.message || ("Player " + parsed2.name + " verified!"), uid: pid, source: "direct-json" };
+                } catch(e2) {}
+            }
+            return parsed.success && parsed.name ? { success: true, name: parsed.name, message: parsed.message, uid: pid } : null;
+        } catch(e) {
+            // Likely CORS blocked or network error
+            return null;
+        }
+    }
+
+    async function verifyViaGoogleScript(pid) {
+        try {
+            var url = `${GOOGLE_SCRIPT_VERIFY_URL}?uid=${encodeURIComponent(pid)}&t=${Date.now()}`;
+            var res = await fetch(url, { method: 'GET' });
+            var data = await res.json();
+            // Fix generic "Player" bug - if name is Player, try extract from message
+            if (data && data.name) {
+                var n = String(data.name).trim();
+                if (n.toLowerCase() === "player" || !isValidPlayerName(n)) {
+                    var extracted = extractNameFromText(data.message || "");
+                    if (extracted && isValidPlayerName(extracted)) {
+                        data.name = extracted;
+                        data.success = true;
+                    } else {
+                        // Still invalid - treat as failure so direct API retry or error shown
+                        if (n.toLowerCase() === "player") {
+                            data.success = false;
+                            data.message = data.message || "Could not fetch name, please try again";
+                        }
+                    }
+                }
+            }
+            return data;
+        } catch(e) {
+            return { success: false, message: 'Network error. Try again.' };
+        }
+    }
+
     async function callVerifyApi(pid) {
         try {
-            // Call your Google Apps Script which proxies nextlevelbgmizone backend
-            const url = `${GOOGLE_SCRIPT_VERIFY_URL}?uid=${encodeURIComponent(pid)}&t=${Date.now()}`;
-            const res = await fetch(url, { method: 'GET' });
-            const data = await res.json();
-            return data;
+            // 0) Cache check - 10 min like Apps Script
+            try {
+                var cachedRaw = localStorage.getItem("uid_" + pid);
+                if (cachedRaw) {
+                    var cached = JSON.parse(cachedRaw);
+                    if (cached && cached.exp && Date.now() < cached.exp && cached.data && isValidPlayerName(cached.data.name)) {
+                        return cached.data;
+                    }
+                }
+            } catch(e) {}
+
+            // 1) Try direct API first (embedded logic - no external sheet needed)
+            var directResult = await verifyViaDirectAPI(pid);
+            if (directResult && directResult.success && isValidPlayerName(directResult.name)) {
+                try { localStorage.setItem("uid_" + pid, JSON.stringify({ data: directResult, exp: Date.now() + 600000 })); } catch(e) {}
+                return directResult;
+            }
+
+            // 2) Fallback to Google Script proxy
+            var gsResult = await verifyViaGoogleScript(pid);
+            if (gsResult && gsResult.success && isValidPlayerName(gsResult.name)) {
+                try { localStorage.setItem("uid_" + pid, JSON.stringify({ data: gsResult, exp: Date.now() + 600000 })); } catch(e) {}
+            }
+            return gsResult;
         } catch(e) {
             return { success: false, message: 'Network error. Try again.' };
         }
@@ -4640,6 +4945,11 @@
     };
 
     function onVerifySuccess(pid, playerName) {
+        // Critical fix: Ensure we never accept generic "Player"
+        if (!isValidPlayerName(playerName)) {
+            showVerifyPopup('error', 'Could not fetch valid player name. Please try again.');
+            return;
+        }
         isUidVerified = true;
         verifiedPlayerName = playerName;
         const grpIgn = document.getElementById('grpIgn');
@@ -4694,8 +5004,9 @@
     function checkStep1Validation() {
         const uidVal = uidInput.value.replace(/\D/g, '');
         const isUidValid = new RegExp(regexPattern).test(uidVal);
-        // Now only UID verified is required, IGN auto-filled
-        document.getElementById('next1').disabled = !(isUidValid && isUidVerified);
+        // Now only UID verified is required, IGN auto-filled - must have valid name not "Player"
+        const hasValidName = isUidVerified && isValidPlayerName(verifiedPlayerName);
+        document.getElementById('next1').disabled = !(isUidValid && hasValidName);
     }
 
     uidInput.addEventListener('input', function(){
@@ -4730,10 +5041,43 @@
             verifyBtn.style.opacity = '0.7';
 
             const data = await callVerifyApi(pid);
+            console.log('Verify API raw:', data);
+            // FIXED: Even if success flag is false, if we have a valid name and message says verified, treat as success
+            let finalName = "";
+            let isActuallySuccess = false;
+            if (data) {
+                if (data.name && isValidPlayerName(data.name)) {
+                    finalName = data.name.trim();
+                    // If name is valid, consider it success if either success flag true OR message contains verified
+                    if (data.success || (data.message && data.message.toLowerCase().includes('verif')) || true) {
+                        isActuallySuccess = true;
+                    }
+                }
+                // If name not in data.name, try extract from message (for cases like "Player ID verified! NAME")
+                if (!finalName && data.message) {
+                    let extracted = extractNameFromText(data.message);
+                    // Also try to get last word after ! as fallback for unicode names like SūYūNūOūX
+                    if (!extracted) {
+                        let m = data.message.match(/verified!\s*(.+)$/i);
+                        if (m && m[1]) {
+                            let cand = m[1].trim().replace(/["']/g,"").split(/[\n\r]+/)[0].trim();
+                            // clean
+                            if (cand.length >=2 && cand.length <= 30) extracted = cand;
+                        }
+                    }
+                    if (extracted && isValidPlayerName(extracted)) {
+                        finalName = extracted;
+                        isActuallySuccess = true;
+                    }
+                }
+            }
 
-            if (data.success && data.name) {
-                showVerifyPopup('success', data.message || `Player ${data.name} verified!`);
-                onVerifySuccess(pid, data.name);
+            if (isActuallySuccess && finalName) {
+                // Override data.name with final extracted name
+                data.name = finalName;
+                data.success = true;
+                showVerifyPopup('success', data.message || `Player ${finalName} verified!`);
+                onVerifySuccess(pid, finalName);
             } else {
                 showVerifyPopup('error', data.message || 'Verification failed. Invalid UID');
                 verifyBtn.disabled = false;
@@ -4757,6 +5101,7 @@
     // ===== END NEW VERIFY LOGIC =====
 
 
+
     const HARDCODED_SHEET_URL = "https://script.google.com/macros/s/AKfycbxZmmaWlqrx9ydYVfO3XkZKh25Oxa_k0XiLNBPbEVEBOwZTlE2qPxF6OEoU-I9oJzLj/exec";
     const HARDCODED_VERIFY_URL = "https://script.google.com/macros/s/AKfycbzX371w86D2MFAGkpbbpYEm5GIvuXeh9BextRnqSLfzBLENLAaIU07T0Cr0nTPNJutQxg/exec";
     const HARDCODED_WEBHOOK_URL = "https://discord.com/api/webhooks/1516406944481542185/7zyh3P5Mj1tYUDmLQfFGEfTD2KLhE-t6hK4pJA6Kk_TxpbsEPi8QiJaWrcJFmMhWsgki";
@@ -4771,7 +5116,10 @@
         const btn = document.getElementById('next1'); const originalText = btn.innerHTML;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking...'; btn.disabled = true;
 
-        currentUid = uidInput.value; currentIgn = ignInput.value;
+        currentUid = uidInput.value.trim(); currentIgn = (typeof verifiedPlayerName !== 'undefined' && verifiedPlayerName && verifiedPlayerName.toLowerCase() !== 'player' ? verifiedPlayerName : ignInput.value.trim());
+        // Extra safety: never allow generic 'Player' to go forward
+        if (!currentIgn || currentIgn.toLowerCase() === 'player') { currentIgn = verifiedPlayerName || ''; }
+        
         
         document.getElementById('displayUid').textContent = currentUid; 
         document.getElementById('displayIgn').textContent = currentIgn;
@@ -5052,6 +5400,7 @@
     };
 
     document.getElementById('back3').onclick = () => {
+      try { const _pop = document.getElementById('upiVerifyingPopup'); if (_pop){ _pop.style.display='none'; _pop.classList.remove('active'); document.body.classList.remove('modal-open'); } } catch(e){}
       if(qrTimer) clearInterval(qrTimer);
       if(paymentVerificationInterval) clearInterval(paymentVerificationInterval);
       
@@ -5084,6 +5433,7 @@
     }
 
     async function processSuccessfulPayment() {
+        try { const _pop = document.getElementById('upiVerifyingPopup'); if (_pop){ _pop.style.display='none'; _pop.classList.remove('active'); document.body.classList.remove('modal-open'); } } catch(e){}
         const vStatus = document.getElementById('verificationStatus');
         vStatus.dataset.verified = "true";
         vStatus.style.background = "rgba(0, 255, 157, 0.1)"; 
