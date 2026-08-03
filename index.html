@@ -1300,24 +1300,24 @@
     <div id="step1" class="step active">
       <div class="step-content">
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 25px;">
-            <h2 class="step-title" id="dispStep1Title" style="margin-bottom: 0;">Player Detail</h2>
+            <h2 class="step-title" id="dispStep1Title" style="margin-bottom: 0;">Player Details</h2>
         </div>
 
         <div class="form-group" id="grpUid">
           <label class="form-label">
-            <span id="dispLblUidInput">Enter your BGMI user id (UID)</span>
+            <span id="dispLblUidInput">BGMI Character ID (UID)</span>
             <i class="fa-solid fa-circle-info info-icon" onclick="openModal('uidModal')"></i>
           </label>
-          <div style="width:100%;">
-            <div class="form-input-wrapper" style="width:100%; position:relative;">
-              <input type="tel" class="form-input" id="uid" placeholder="Enter your BGMI user id (UID)" maxlength="12" inputmode="numeric">
-              <i class="input-icon" id="uidIcon" style="display:none;"></i>
-              <span id="regex-indicator" style="display:none !important;"></span>
+          <div style="display:flex; gap:8px; width:100%; min-width:0;">
+            <div class="form-input-wrapper" style="flex:1; min-width:0; position:relative;">
+              <input type="tel" class="form-input" id="uid" placeholder="Enter UID" maxlength="12" inputmode="numeric" style="padding-right:36px;">
+              <i class="input-icon" id="uidIcon"></i>
+              <span id="regex-indicator" style="display:none; position:absolute; right:10px; top:50%; transform:translateY(-50%); font-weight:800; font-size:14px;"></span>
             </div>
-            <button type="button" id="verifyUidBtn" disabled style="width:100%; margin-top:12px; padding:0 18px; height:46px; background:var(--primary); color:#000; border:none; border-radius:12px; font-family:var(--font-display); font-weight:800; font-size:13px; letter-spacing:0.5px; cursor:not-allowed; opacity:0.4; white-space:nowrap; transition:all 0.2s;">Verify</button>
-            <div class="error-message" id="uidError"><span id="dispErrUid">Invalid UID Format</span></div>
-            <div id="verify-result" style="display:none; margin-top:8px; font-size:12px; padding:8px 12px; border-radius:8px;"></div>
+            <button type="button" id="verifyUidBtn" disabled style="flex-shrink:0; padding:0 18px; height:46px; background:var(--primary); color:#000; border:none; border-radius:12px; font-family:var(--font-display); font-weight:800; font-size:13px; letter-spacing:0.5px; cursor:not-allowed; opacity:0.4; white-space:nowrap; transition:all 0.2s;">Verify</button>
           </div>
+          <div class="error-message" id="uidError"><span id="dispErrUid">Invalid UID Format</span></div>
+          <div id="verify-result" style="display:none; margin-top:8px; font-size:12px; padding:8px 12px; border-radius:8px;"></div>
         </div>
 
         <!-- Verify Popup - Same as NextLevel -->
@@ -1343,8 +1343,8 @@
           <div id="autoIgnHint" style="margin-top:6px; font-size:11px; color:var(--success); display:none;"><i class="fa-solid fa-circle-check"></i> <span id="autoIgnText"></span></div>
         </div>
 
-                <div class="btn-row" id="continueBtnRow" style="display:none;">
-          <button type="button" class="btn btn-primary" id="next1"><span id="dispBtnVerify">Continue</span> <i class="fa-solid fa-arrow-right"></i></button>
+        <div class="btn-row">
+          <button type="button" class="btn btn-primary" id="next1" disabled><span id="dispBtnVerify">Verify & Continue</span> <i class="fa-solid fa-arrow-right"></i></button>
         </div>
       </div>
 
@@ -1358,7 +1358,11 @@
               <img src="uid-ss.webp" id="dispImgHowTo1" alt="UID Screenshot" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--surface-border); margin-bottom: 25px;">
           </div>
           
-          
+          <div id="howToBlock2">
+              <h4 style="color: #fff; font-size: 15px; margin-bottom: 8px;" id="dispHowToQ2">How do I find my BGMI ID name (IGN)?</h4>
+              <p style="color: var(--text-muted); font-size: 13px; line-height: 1.5; margin-bottom: 10px;" id="dispHowToA2">Open BGMI and enter the lobby. Tap on the profile picture and navigate to Basic Info. You will see a BGMI ID name (IGN) above or beside the profile picture. Make sure to copy or enter the correct name before making the purchase.</p>
+              <img src="bgminame-ss.webp" id="dispImgHowTo2" alt="IGN Screenshot" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--surface-border); margin-bottom: 10px;">
+          </div>
       </div>
     </div>
 
@@ -2111,7 +2115,7 @@
           <div class="admin-subsection">
               <label style="font-size:12px; color:var(--primary); font-weight:600;">Step 1: Player Details Texts</label>
               <div class="flex-row-center"><input type="checkbox" id="tgl_step1Title" class="admin-toggle-box"><input type="text" class="form-input" id="adminTextStep1" placeholder="Step 1 Title" style="font-size:12px; padding:8px;"></div>
-              <div class="flex-row-center"><input type="checkbox" id="tgl_grpUid" class="admin-toggle-box"><input type="text" class="form-input" id="adminTextLblUidInput" placeholder="Enter your BGMI user id (UID)" style="font-size:12px; padding:8px;"></div>
+              <div class="flex-row-center"><input type="checkbox" id="tgl_grpUid" class="admin-toggle-box"><input type="text" class="form-input" id="adminTextLblUidInput" placeholder="BGMI Character ID (UID)" style="font-size:12px; padding:8px;"></div>
               <div class="flex-row-center"><input type="text" class="form-input" id="adminTextPhUid" placeholder="Placeholder UID" style="font-size:12px; padding:8px; width:100%; margin-left: 26px;"></div>
               <div class="flex-row-center"><input type="text" class="form-input" id="adminTextErrUid" placeholder="Error: Invalid UID" style="font-size:12px; padding:8px; width:100%; margin-left: 26px;"></div>
               
@@ -2561,7 +2565,7 @@
             loaderText: "FlashTOP", tagline: "Instant game top-ups at affordable rates", partnerBadge: "BGMI Authorised Seller",
             secureBadge: "Secure", instantBadge: "Instant", supportBadge: "24/7", ordersToday: "Packs Delivered Today", 
             
-            step1Title: "Player Detail", lblUidInput: "Enter your BGMI user id (UID)", phUid: "Enter your BGMI user id (UID)", errUid: "Invalid UID Format",
+            step1Title: "Player Details", lblUidInput: "BGMI Character ID (UID)", phUid: "Enter UID", errUid: "Invalid UID Format",
             lblIgnInput: "BGMI ID Name", phIgn: "Enter IGN", errIgn: "Name Required",
             
             howToRedeemTitle: "How to redeem",
@@ -4554,15 +4558,16 @@
     let verifiedPlayerName = "";
 
     function checkRegex(pid) {
-        if (!regexPattern) return true;
+        if (!regexPattern || !regexIndicator) return true;
         try {
             const ok = new RegExp(regexPattern).test(pid);
-            // tick removed as per requirement - no visual tick
-            if (regexIndicator) regexIndicator.style.display = 'none';
-            if (verifyBtn && !isUidVerified) {
-                verifyBtn.disabled = !ok;
-                verifyBtn.style.opacity = ok ? '1' : '0.4';
-                verifyBtn.style.cursor = ok ? 'pointer' : 'not-allowed';
+            regexIndicator.style.display = 'block';
+            regexIndicator.textContent = ok ? '✓' : '✗';
+            regexIndicator.style.color = ok ? '#00ff9d' : '#ff4757';
+            if (verifyBtn) {
+                verifyBtn.disabled = !ok || isUidVerified;
+                verifyBtn.style.opacity = ok && !isUidVerified ? '1' : '0.4';
+                verifyBtn.style.cursor = ok && !isUidVerified ? 'pointer' : 'not-allowed';
             }
             return ok;
         } catch(e) { return true; }
@@ -4641,7 +4646,6 @@
         const ignInputEl = document.getElementById('ign');
         const autoHint = document.getElementById('autoIgnHint');
         const autoText = document.getElementById('autoIgnText');
-        const continueRow = document.getElementById('continueBtnRow');
 
         if (grpIgn) grpIgn.style.display = 'block';
         if (ignInputEl) {
@@ -4651,19 +4655,19 @@
         if (autoHint) autoHint.style.display = 'block';
         if (autoText) autoText.textContent = `Verified as ${playerName}`;
 
-        if (uidInput) uidInput.readOnly = false; // keep editable but we track verified state, as per requirement uid change resets
-        // Hide verify button as per requirement 7
+        if (uidInput) uidInput.readOnly = true;
         if (verifyBtn) {
-            verifyBtn.style.display = 'none';
+            verifyBtn.textContent = '✓ Verified';
             verifyBtn.disabled = true;
+            verifyBtn.style.background = '#00ff9d';
+            verifyBtn.style.opacity = '1';
+            verifyBtn.style.cursor = 'not-allowed';
         }
-        // Hide tick icons as per requirement 4
-        if (uidIcon) uidIcon.style.display = 'none';
-        if (regexIndicator) regexIndicator.style.display = 'none';
-
-        // Show IGN and Continue button
-        if (continueRow) continueRow.style.display = 'flex';
-        
+        if (uidIcon) uidIcon.className = 'input-icon check fas fa-check-circle';
+        if (regexIndicator) {
+            regexIndicator.textContent = '✓';
+            regexIndicator.style.color = '#00ff9d';
+        }
         showVerifyResult('success', `✓ ${playerName}`);
         checkStep1Validation();
         triggerHaptic('success');
@@ -4674,22 +4678,15 @@
         verifiedPlayerName = "";
         const grpIgn = document.getElementById('grpIgn');
         const ignInputEl = document.getElementById('ign');
-        const continueRow = document.getElementById('continueBtnRow');
         if (grpIgn) grpIgn.style.display = 'none';
         if (ignInputEl) ignInputEl.value = "";
         if (uidInput) uidInput.readOnly = false;
-        // Show verify button again as per requirement 8
         if (verifyBtn) {
             verifyBtn.textContent = 'Verify';
             verifyBtn.disabled = false;
-            verifyBtn.style.display = 'block';
             verifyBtn.style.background = 'var(--primary)';
             verifyBtn.style.opacity = '0.4';
-            verifyBtn.style.cursor = 'not-allowed';
         }
-        // Hide continue button and IGN
-        if (continueRow) continueRow.style.display = 'none';
-        if (uidIcon) uidIcon.style.display = 'none';
         hideVerifyResult();
         checkStep1Validation();
     }
@@ -4697,17 +4694,8 @@
     function checkStep1Validation() {
         const uidVal = uidInput.value.replace(/\D/g, '');
         const isUidValid = new RegExp(regexPattern).test(uidVal);
-        const nextBtn = document.getElementById('next1');
-        const continueRow = document.getElementById('continueBtnRow');
-        const isValid = isUidValid && isUidVerified;
-        if (nextBtn) {
-            nextBtn.disabled = !isValid;
-        }
-        // Show continue row only when verified
-        if (continueRow) {
-            continueRow.style.display = isValid ? 'flex' : (isUidVerified ? 'flex' : 'none');
-            if (!isUidVerified) continueRow.style.display = 'none';
-        }
+        // Now only UID verified is required, IGN auto-filled
+        document.getElementById('next1').disabled = !(isUidValid && isUidVerified);
     }
 
     uidInput.addEventListener('input', function(){
@@ -4716,14 +4704,17 @@
       }
       this.value = this.value.replace(/\D/g, '').slice(0,12);
       const pid = this.value.trim();
-      // No tick icon as per requirement 4
-      if (uidIcon) uidIcon.style.display = 'none';
-      uidError.classList.remove('show');
+      const len = this.value.length;
+      const isValid = len >= 8 && len <= 12;
+      if(isValid){
+        uidIcon.className = 'input-icon check fas fa-check-circle';
+        uidError.classList.remove('show');
+        triggerHaptic('light');
+      } else {
+        uidIcon.className = '';
+      }
       checkRegex(pid);
       hideVerifyResult();
-      // Hide continue button while typing new UID (requirement 8)
-      const continueRow = document.getElementById('continueBtnRow');
-      if (continueRow) continueRow.style.display = 'none';
       checkStep1Validation();
     });
 
@@ -4748,7 +4739,10 @@
                 verifyBtn.disabled = false;
                 verifyBtn.textContent = 'Verify';
                 verifyBtn.style.opacity = '1';
-                if (regexIndicator) regexIndicator.style.display = 'none';
+                if (regexIndicator) {
+                    regexIndicator.textContent = '✗';
+                    regexIndicator.style.color = '#ff4757';
+                }
             }
         });
     }
